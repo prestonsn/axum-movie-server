@@ -1,19 +1,13 @@
 use axum::{
-    body::Bytes,
-    error_handling::HandleErrorLayer,
-    extract::{DefaultBodyLimit, Path, State},
-    handler::Handler,
+    extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse,
+    routing::get,
     routing::post,
-    routing::{delete, get},
-    Error, Json, Router,
+    Json, Router,
 };
 use std::{
-    borrow::Cow,
     collections::HashMap,
     sync::{Arc, RwLock},
-    time::Duration,
 };
 
 use serde::{Deserialize, Serialize};
