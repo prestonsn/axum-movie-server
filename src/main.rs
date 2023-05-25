@@ -1,15 +1,23 @@
 use axum::{
-    extract::{Path, State},
+    body::Bytes,
+    error_handling::HandleErrorLayer,
+    extract::{DefaultBodyLimit, Path, State},
+    handler::Handler,
     http::StatusCode,
-    routing::get,
+    response::IntoResponse,
     routing::post,
+    routing::{delete, get},
     Error, Json, Router,
 };
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
 use tokio;
-use tokio::sync::RwLock;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 struct Movie {
@@ -19,8 +27,8 @@ struct Movie {
     desc: String,
 }
 
-unsafe impl Send for Movie {}
-unsafe impl Sync for Movie {}
+// unsafe impl Send for Movie {}
+// unsafe impl Sync for Movie {}
 
 #[derive(Default)]
 struct CommonState {
@@ -29,33 +37,16 @@ struct CommonState {
 
 type SharedState = Arc<RwLock<CommonState>>;
 
-#[axum_macros::debug_handler]
-async fn movie_get(
-    Path(slug): Path<String>,
-    State(state): State<SharedState>,
-) -> Result<Json<Movie>, StatusCode> {
-    println!(" get() incoming json : {:?}", slug);
-    match state.read().await.db.get(&slug) {
-        Some(movie) => {
-            return Ok(movie.clone());
-        }
-        None => return Err(StatusCode::NOT_FOUND),
-    }
-}
-
-async fn movie_post(
-    Json(payload): Json<Movie>,
-    State(state): State<SharedState>,
-) -> (StatusCode, String) {
+async fn movie_post(State(state): State<SharedState>, Json(payload): Json<Movie>) -> StatusCode {
     println!(" post() incoming json : {:?}", payload);
     // let slug = payload.slug;
     state
         .write()
-        .await
+        .unwrap()
         .db
         .insert(payload.slug.clone(), Json(payload.clone()));
 
-    (StatusCode::OK, payload.slug)
+    StatusCode::OK
 }
 
 #[tokio::main]
@@ -63,18 +54,30 @@ async fn main() {
     let shared_state = SharedState::default();
 
     let router = Router::new()
-        .with_state(Arc::clone(&shared_state))
-        .route("/movie/:slug", get(movie_get));
-    // .route("/movie", get(movie_post)
-    //     .post_service(movie_post(json, state)))
-    // .with_state(Arc::clone(&shared_state));
+        .route(
+            "/:slug",
+            get(movie_get).with_state(Arc::clone(&shared_state)),
+        )
+        .route("/", post(movie_post).with_state(Arc::clone(&shared_state)));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
+    // let post_router = Router::new().route("/", post(movie_post).with_state(shared_state));
+    let app = Router::new().nest("/movies", router);
+
+    axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
+        .serve(app.into_make_service())
         .await
         .unwrap();
+}
 
-    axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-        .serve(router.into_make_service())
-        .await
-        .unwrap();
+async fn movie_get(
+    Path(slug): Path<String>,
+    State(state): State<SharedState>,
+) -> Result<Json<Movie>, StatusCode> {
+    println!(" get() incoming json : {:?}", slug);
+    match state.read().unwrap().db.get(&slug) {
+        Some(movie) => {
+            return Ok(movie.clone());
+        }
+        None => return Err(StatusCode::NOT_FOUND),
+    }
 }
