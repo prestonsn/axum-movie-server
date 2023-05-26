@@ -6,6 +6,12 @@ First run the axum server:
 cargo run
 ```
 
+```
+export DATABASE_URL=postgres://localhost/your_db
+diesel migration run
+cargo run -p example-diesel-async-postgres
+```
+
 Then in another terminal run:
 
 ```
