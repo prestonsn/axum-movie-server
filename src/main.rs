@@ -83,19 +83,24 @@ where
 //     StatusCode::OK
 // }
 
-async fn create_movie(
-    Json(new_movie): Json<Movie>,
-    State(pool): State<Pool>,
-) -> Result<Json<Movie>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(internal_error)?;
+async fn create_movie(State(pool): State<Pool>, Json(new_movie): Json<Movie>) -> StatusCode {
+    println!(" post() incoming new movie {:?}", new_movie);
+    let mut conn = match pool.get().await.map_err(internal_error) {
+        Ok(conn) => conn,
+        Err(e) => return e.0,
+    };
 
     let res = diesel::insert_into(schema::movies::table)
         .values(new_movie)
         .returning(Movie::as_returning())
         .get_result(&mut conn)
         .await
-        .map_err(internal_error)?;
-    Ok(Json(res))
+        .map_err(internal_error);
+    match res {
+        Ok(_res) => println!("Wrote to DB!"),
+        Err(_e) => return StatusCode::INTERNAL_SERVER_ERROR,
+    }
+    StatusCode::OK
 }
 
 async fn get_movie(
@@ -143,9 +148,12 @@ async fn main() {
     let pool = bb8::Pool::builder().build(config).await.unwrap();
 
     let router = Router::new()
-        .route("/", post(create_movie))
         .route("/:req_id", get(get_movie))
-        .with_state(pool);
+        .route("/", post(create_movie))
+        .with_state(pool)
+        .with_state(shared_state);
+    // .with_state(shared_state)
+
     // .route(
     //     "/:slug",
     //     get(movie_get).with_state(Arc::clone(&shared_state)),
