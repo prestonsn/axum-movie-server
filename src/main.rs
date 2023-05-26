@@ -38,10 +38,12 @@ struct Movie {
 type SharedState = Arc<RwLock<CommonState>>;
 type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
-#[derive(Default)]
 struct CommonState {
-    cache: HashMap<String, Json<Movie>>,
+    cache: HashMap<i32, Json<Movie>>,
+    db: Pool,
 }
+
+unsafe impl Send for CommonState {}
 
 struct DatabaseConnection(
     bb8::PooledConnection<'static, AsyncDieselConnectionManager<AsyncPgConnection>>,
@@ -71,20 +73,13 @@ where
     }
 }
 
-// async fn movie_post(State(state): State<SharedState>, Json(payload): Json<Movie>) -> StatusCode {
-//     println!(" post() incoming json : {:?}", payload);
-//     // let slug = payload.slug;
-//     state
-//         .write()
-//         .unwrap()
-//         .cache
-//         .insert(payload.slug.clone(), Json(payload.clone()));
-
-//     StatusCode::OK
-// }
-
-async fn create_movie(State(pool): State<Pool>, Json(new_movie): Json<Movie>) -> StatusCode {
+#[axum::debug_handler]
+async fn create_movie(
+    State(state): State<SharedState>,
+    Json(new_movie): Json<Movie>,
+) -> StatusCode {
     println!(" post() incoming new movie {:?}", new_movie);
+    let pool = state.read().unwrap().db.clone();
     let mut conn = match pool.get().await.map_err(internal_error) {
         Ok(conn) => conn,
         Err(e) => return e.0,
@@ -103,19 +98,36 @@ async fn create_movie(State(pool): State<Pool>, Json(new_movie): Json<Movie>) ->
     StatusCode::OK
 }
 
+#[axum::debug_handler]
 async fn get_movie(
+    // DatabaseConnection(mut conn): DatabaseConnection,
+    State(state): State<SharedState>,
     Path(req_id): Path<i32>,
-    DatabaseConnection(mut conn): DatabaseConnection,
 ) -> Result<Json<Movie>, StatusCode> {
     println!(" get() incoming id : {}", req_id);
-    let res = schema::movies::table
-        .find(req_id)
-        .first(&mut conn)
-        .await
-        .map_err(internal_error)
-        .unwrap();
 
-    Ok(Json(res))
+    let cached_response = match state.read().unwrap().cache.get(&req_id) {
+        Some(resp) => {
+            println!("Using cached entry!");
+            return Ok(resp.clone());
+        }
+
+        None => {}
+    };
+
+    let mut pool = state.read().unwrap().db.get_owned().await.unwrap();
+    let res: Json<Movie> = Json(
+        schema::movies::table
+            .find(req_id)
+            .first(&mut pool)
+            .await
+            .map_err(internal_error)
+            .unwrap(),
+    );
+
+    state.write().unwrap().cache.insert(req_id, res.clone());
+
+    Ok(res)
 }
 
 // async fn movie_get(
@@ -141,17 +153,21 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let shared_state = SharedState::default();
-
     let db_url = std::env::var("DATABASE_URL").unwrap();
     let config = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url);
     let pool = bb8::Pool::builder().build(config).await.unwrap();
 
+    let shared_state = RwLock::new(CommonState {
+        cache: HashMap::new(),
+        db: pool,
+    });
+
     let router = Router::new()
-        .route("/:req_id", get(get_movie))
+        // .route("/:req_id", get(get_movie))
         .route("/", post(create_movie))
-        .with_state(pool)
-        .with_state(shared_state);
+        .with_state(Arc::new(shared_state));
+    // .with_state(shared_state);
+    // .with_state(pool);
     // .with_state(shared_state)
 
     // .route(
