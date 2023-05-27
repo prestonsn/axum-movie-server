@@ -1,9 +1,8 @@
 mod schema;
 
 use axum::{
-    async_trait,
-    extract::{FromRef, FromRequestParts, Path, State},
-    http::{request::Parts, StatusCode},
+    extract::{Path, State},
+    http::StatusCode,
     routing::get,
     routing::post,
     Json, Router,
@@ -17,14 +16,10 @@ use diesel_async::{
     pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection, RunQueryDsl,
 };
 
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use serde::{Deserialize, Serialize};
-use tokio;
+use tokio::sync::RwLock;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, Insertable, Selectable, Queryable)]
 #[diesel(table_name = schema::movies)]
@@ -43,12 +38,6 @@ struct CommonState {
     db: Pool,
 }
 
-unsafe impl Send for CommonState {}
-
-struct DatabaseConnection(
-    bb8::PooledConnection<'static, AsyncDieselConnectionManager<AsyncPgConnection>>,
-);
-
 fn internal_error<E>(err: E) -> (StatusCode, String)
 where
     E: std::error::Error,
@@ -56,92 +45,78 @@ where
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }
 
-#[async_trait]
-impl<S> FromRequestParts<S> for DatabaseConnection
-where
-    S: Send + Sync,
-    Pool: FromRef<S>,
-{
-    type Rejection = (StatusCode, String);
-
-    async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let pool = Pool::from_ref(state);
-
-        let conn = pool.get_owned().await.map_err(internal_error)?;
-
-        Ok(Self(conn))
-    }
-}
-
 #[axum::debug_handler]
 async fn create_movie(
     State(state): State<SharedState>,
     Json(new_movie): Json<Movie>,
 ) -> StatusCode {
-    println!(" post() incoming new movie {:?}", new_movie);
-    let pool = state.read().unwrap().db.clone();
+    tracing::debug!(" create_movie() request {:?}", new_movie);
+
+    let pool = state.read().await.db.clone();
     let mut conn = match pool.get().await.map_err(internal_error) {
         Ok(conn) => conn,
-        Err(e) => return e.0,
+        Err(e) => {
+            let status = e.0;
+            tracing::error!("Failed to acquire Diesel connection to db");
+            return status;
+        }
     };
 
     let res = diesel::insert_into(schema::movies::table)
-        .values(new_movie)
+        .values(new_movie.clone())
         .returning(Movie::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(internal_error);
+
     match res {
-        Ok(_res) => println!("Wrote to DB!"),
-        Err(_e) => return StatusCode::INTERNAL_SERVER_ERROR,
+        Ok(res) => {
+            state
+                .write()
+                .await
+                .cache
+                .insert(new_movie.id, Json(new_movie));
+            tracing::debug!("\t added movie to db, updated cache. {:?}", res)
+        }
+        Err(_e) => return StatusCode::ALREADY_REPORTED,
     }
+
     StatusCode::OK
 }
 
 #[axum::debug_handler]
 async fn get_movie(
-    // DatabaseConnection(mut conn): DatabaseConnection,
     State(state): State<SharedState>,
     Path(req_id): Path<i32>,
 ) -> Result<Json<Movie>, StatusCode> {
-    println!(" get() incoming id : {}", req_id);
+    tracing::debug!(" get_movie() id {:?}", req_id);
+    println!(" get_movie() id {:?}", req_id);
 
-    let cached_response = match state.read().unwrap().cache.get(&req_id) {
+    match state.read().await.cache.get(&req_id) {
         Some(resp) => {
-            println!("Using cached entry!");
+            tracing::debug!(" Cache hit, serving cached result {:?}", req_id);
             return Ok(resp.clone());
         }
 
-        None => {}
+        None => {
+            tracing::debug!("Cache miss, accessing db...");
+            let mut pool = state.read().await.db.get_owned().await.unwrap();
+            let res: Json<Movie> = Json(
+                schema::movies::table
+                    .find(req_id)
+                    .first(&mut pool)
+                    .await
+                    .map_err(internal_error)
+                    .unwrap(),
+            );
+
+            tracing::debug!("Got requested movie, updating cache.");
+            state.write().await.cache.insert(req_id, res.clone());
+
+            return Ok(res);
+        }
     };
-
-    let mut pool = state.read().unwrap().db.get_owned().await.unwrap();
-    let res: Json<Movie> = Json(
-        schema::movies::table
-            .find(req_id)
-            .first(&mut pool)
-            .await
-            .map_err(internal_error)
-            .unwrap(),
-    );
-
-    state.write().unwrap().cache.insert(req_id, res.clone());
-
-    Ok(res)
 }
-
-// async fn movie_get(
-//     Path(slug): Path<String>,
-//     State(state): State<SharedState>,
-// ) -> Result<Json<Movie>, StatusCode> {
-//     println!(" get() incoming json : {:?}", slug);
-//     match state.read().unwrap().cache.get(&slug) {
-//         Some(movie) => {
-//             return Ok(movie.clone());
-//         }
-//         None => return Err(StatusCode::NOT_FOUND),
-//     }
-// }
 
 #[tokio::main]
 async fn main() {
@@ -163,18 +138,9 @@ async fn main() {
     });
 
     let router = Router::new()
-        // .route("/:req_id", get(get_movie))
+        .route("/:req_id", get(get_movie))
         .route("/", post(create_movie))
         .with_state(Arc::new(shared_state));
-    // .with_state(shared_state);
-    // .with_state(pool);
-    // .with_state(shared_state)
-
-    // .route(
-    //     "/:slug",
-    //     get(movie_get).with_state(Arc::clone(&shared_state)),
-    // )
-    // .route("/", post(movie_post).with_state(Arc::clone(&shared_state)));
 
     let app = Router::new().nest("/movies", router);
 
