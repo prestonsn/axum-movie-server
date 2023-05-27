@@ -9,7 +9,6 @@ use axum::{
 };
 
 use tracing;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use diesel::prelude::*;
 use diesel_async::{
@@ -132,14 +131,6 @@ async fn main() {
         std::env::set_var("RUST_LOG", "axum-moviesdb=debug,tower_http=debug")
     }
     tracing_subscriber::fmt::init();
-
-    // tracing_subscriber::registry()
-    //     .with(
-    //         tracing_subscriber::EnvFilter::try_from_default_env()
-    //             .unwrap_or_else(|_| "axum-moviesdb=debug,tower_http=debug".into()),
-    //     )
-    //     .with(tracing_subscriber::fmt::layer())
-    //     .init();
 
     let db_url = std::env::var("DATABASE_URL").unwrap();
     let config = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url);
