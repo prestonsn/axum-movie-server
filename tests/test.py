@@ -23,7 +23,7 @@ data = {
 
 # generate 100 movies
 # will 500 internal error the server after the database is populated once. 
-# for i in range(0, 10):
+# for i in range(123, 202):
 #     data['id'] = i
 #     data['title'] = sentence.gen(3)
 #     data['year'] = random.randint(1967, 2023)
@@ -33,10 +33,11 @@ data = {
 #     print(r.status_code)
 
 # Fetch 100 movies
-for i in range(0, 10):
+for i in range(123, 201):
     get_url = "http://127.0.0.1:8000/movies/{}".format(i)
     r = requests.get(url=get_url)
-    print(r.status_code, r.json)
+    print(r.status_code)
+    print("\t{}".format(r.json()))
 
 
 

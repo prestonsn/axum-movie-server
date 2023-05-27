@@ -21,6 +21,9 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
+// use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, Insertable, Selectable, Queryable)]
 #[diesel(table_name = schema::movies)]
 struct Movie {
@@ -52,7 +55,8 @@ async fn create_movie(
 ) -> StatusCode {
     tracing::debug!(" create_movie() request {:?}", new_movie);
 
-    let pool = state.read().await.db.clone();
+    let reader_lock = state.read().await;
+    let pool = (*reader_lock).db.clone();
     let mut conn = match pool.get().await.map_err(internal_error) {
         Ok(conn) => conn,
         Err(e) => {
@@ -69,13 +73,11 @@ async fn create_movie(
         .await
         .map_err(internal_error);
 
+    drop(reader_lock);
     match res {
         Ok(res) => {
-            state
-                .write()
-                .await
-                .cache
-                .insert(new_movie.id, Json(new_movie));
+            let mut writer_lock = state.write().await;
+            (*writer_lock).cache.insert(new_movie.id, Json(new_movie));
             tracing::debug!("\t added movie to db, updated cache. {:?}", res)
         }
         Err(_e) => return StatusCode::ALREADY_REPORTED,
@@ -92,15 +94,18 @@ async fn get_movie(
     tracing::debug!(" get_movie() id {:?}", req_id);
     println!(" get_movie() id {:?}", req_id);
 
-    match state.read().await.cache.get(&req_id) {
+    let reader_lock = state.read().await;
+    let movie_json = match (*reader_lock).cache.get(&req_id) {
         Some(resp) => {
             tracing::debug!(" Cache hit, serving cached result {:?}", req_id);
-            return Ok(resp.clone());
+            println!(" cache_hit ");
+            resp.clone()
         }
 
         None => {
             tracing::debug!("Cache miss, accessing db...");
-            let mut pool = state.read().await.db.get_owned().await.unwrap();
+            println!(" cache miss ");
+            let mut pool = (*reader_lock).db.get_owned().await.unwrap();
             let res: Json<Movie> = Json(
                 schema::movies::table
                     .find(req_id)
@@ -110,23 +115,31 @@ async fn get_movie(
                     .unwrap(),
             );
 
-            tracing::debug!("Got requested movie, updating cache.");
-            state.write().await.cache.insert(req_id, res.clone());
-
-            return Ok(res);
+            res
         }
     };
+    drop(reader_lock);
+    tracing::debug!("Got requested movie, updating cache.");
+    let mut writer_lock = state.write().await;
+    (*writer_lock).cache.insert(req_id, movie_json.clone());
+
+    Ok(movie_json)
 }
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "axum-moviesdb=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    if std::env::var_os("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "axum-moviesdb=debug,tower_http=debug")
+    }
+    tracing_subscriber::fmt::init();
+
+    // tracing_subscriber::registry()
+    //     .with(
+    //         tracing_subscriber::EnvFilter::try_from_default_env()
+    //             .unwrap_or_else(|_| "axum-moviesdb=debug,tower_http=debug".into()),
+    //     )
+    //     .with(tracing_subscriber::fmt::layer())
+    //     .init();
 
     let db_url = std::env::var("DATABASE_URL").unwrap();
     let config = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url);
@@ -138,8 +151,8 @@ async fn main() {
     });
 
     let router = Router::new()
-        .route("/:req_id", get(get_movie))
-        .route("/", post(create_movie))
+        .route("/:req_id", get(get_movie).layer(TraceLayer::new_for_http()))
+        .route("/", post(create_movie).layer(TraceLayer::new_for_http()))
         .with_state(Arc::new(shared_state));
 
     let app = Router::new().nest("/movies", router);

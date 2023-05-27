@@ -6,6 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tower = { version = "0.4.13", features = [
+    "util",
+    "timeout",
+    "load-shed",
+    "limit",
+] }
 tokio = { version = "1.28.1", features = ["full"] }
 axum = { version = "0.6.18", features = ["macros"] }
 serde = { version = "1.0.163", features = ["derive"] }
@@ -17,3 +23,9 @@ tracing = "0.1.37"
 bb8 = "0.8.0"
 diesel-async = { version = "0.3.0", features = ["bb8", "postgres"] }
 diesel = "2.1.0"
+tower-http = { version = "0.4.0", features = [
+    "add-extension",
+    "limit",
+    "trace",
+] }
+tower-layer = "0.3.2"
