@@ -1,20 +1,17 @@
-## Usage
+# [For an interview]
 
 First run the axum server:
 
+Requires postgres setup first. Then run `source load_env.sh` after adjusting the script.
+
 ```
-cargo run
+diesel migration run
+cargo run -p axum-moviesdb
 ```
 
 Then in another terminal run:
 
 ```
+cd tests/
 python3 test.py
-```
-
-Sample output:
-
-```
- post() incoming json : Movie { name: "movie_name_A", slug: "a", year: 2021, desc: "This is test movie A" }
- get() incoming json : "a"
 ```
