@@ -20,8 +20,8 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-// use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, Insertable, Selectable, Queryable)]
 #[diesel(table_name = schema::movies)]
@@ -90,8 +90,7 @@ async fn get_movie(
     State(state): State<SharedState>,
     Path(req_id): Path<i32>,
 ) -> Result<Json<Movie>, StatusCode> {
-    tracing::debug!(" get_movie() id {:?}", req_id);
-    println!(" get_movie() id {:?}", req_id);
+    tracing::info!(" get_movie() id {:?}", req_id);
 
     let reader_lock = state.read().await;
     let movie_json = match (*reader_lock).cache.get(&req_id) {
@@ -103,7 +102,6 @@ async fn get_movie(
 
         None => {
             tracing::debug!("Cache miss, accessing db...");
-            println!(" cache miss ");
             let mut pool = (*reader_lock).db.get_owned().await.unwrap();
             let res: Json<Movie> = Json(
                 schema::movies::table
@@ -130,7 +128,13 @@ async fn main() {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "axum-moviesdb=debug,tower_http=debug")
     }
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "axum-moviesdb=debug,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     let db_url = std::env::var("DATABASE_URL").unwrap();
     let config = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url);
@@ -142,11 +146,13 @@ async fn main() {
     });
 
     let router = Router::new()
-        .route("/:req_id", get(get_movie).layer(TraceLayer::new_for_http()))
-        .route("/", post(create_movie).layer(TraceLayer::new_for_http()))
+        .route("/:req_id", get(get_movie))
+        .route("/", post(create_movie))
         .with_state(Arc::new(shared_state));
 
-    let app = Router::new().nest("/movies", router);
+    let app = Router::new()
+        .nest("/movies", router)
+        .layer(TraceLayer::new_for_http());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::debug!("listening on {}", addr);

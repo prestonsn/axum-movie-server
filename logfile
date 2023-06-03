@@ -1,0 +1,56 @@
+2023-06-03 14:23:26.241 CDT [72540] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:23:26.243 CDT [72540] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2023-06-03 14:23:26.243 CDT [72540] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:23:26.243 CDT [72540] LOG:  could not bind IPv6 address "::1": Address already in use
+2023-06-03 14:23:26.243 CDT [72540] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:23:26.243 CDT [72540] WARNING:  could not create listen socket for "localhost"
+2023-06-03 14:23:26.243 CDT [72540] FATAL:  could not create any TCP/IP sockets
+2023-06-03 14:23:26.244 CDT [72540] LOG:  database system is shut down
+2023-06-03 14:53:07.851 CDT [73086] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:53:07.853 CDT [73086] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2023-06-03 14:53:07.853 CDT [73086] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:53:07.853 CDT [73086] LOG:  could not bind IPv6 address "::1": Address already in use
+2023-06-03 14:53:07.853 CDT [73086] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:53:07.853 CDT [73086] WARNING:  could not create listen socket for "localhost"
+2023-06-03 14:53:07.853 CDT [73086] FATAL:  could not create any TCP/IP sockets
+2023-06-03 14:53:07.854 CDT [73086] LOG:  database system is shut down
+2023-06-03 14:54:26.766 CDT [73229] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:54:26.768 CDT [73229] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2023-06-03 14:54:26.768 CDT [73229] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:54:26.768 CDT [73229] LOG:  could not bind IPv6 address "::1": Address already in use
+2023-06-03 14:54:26.768 CDT [73229] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:54:26.768 CDT [73229] WARNING:  could not create listen socket for "localhost"
+2023-06-03 14:54:26.768 CDT [73229] FATAL:  could not create any TCP/IP sockets
+2023-06-03 14:54:26.769 CDT [73229] LOG:  database system is shut down
+2023-06-03 14:55:36.807 CDT [73686] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:55:36.809 CDT [73686] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2023-06-03 14:55:36.809 CDT [73686] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:55:36.809 CDT [73686] LOG:  could not bind IPv6 address "::1": Address already in use
+2023-06-03 14:55:36.809 CDT [73686] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:55:36.809 CDT [73686] WARNING:  could not create listen socket for "localhost"
+2023-06-03 14:55:36.809 CDT [73686] FATAL:  could not create any TCP/IP sockets
+2023-06-03 14:55:36.810 CDT [73686] LOG:  database system is shut down
+2023-06-03 14:57:27.557 CDT [73809] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:57:27.559 CDT [73809] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2023-06-03 14:57:27.559 CDT [73809] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:57:27.559 CDT [73809] LOG:  could not bind IPv6 address "::1": Address already in use
+2023-06-03 14:57:27.559 CDT [73809] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:57:27.559 CDT [73809] WARNING:  could not create listen socket for "localhost"
+2023-06-03 14:57:27.559 CDT [73809] FATAL:  could not create any TCP/IP sockets
+2023-06-03 14:57:27.560 CDT [73809] LOG:  database system is shut down
+2023-06-03 14:58:10.834 CDT [73967] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:58:10.836 CDT [73967] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2023-06-03 14:58:10.836 CDT [73967] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:58:10.836 CDT [73967] LOG:  could not bind IPv6 address "::1": Address already in use
+2023-06-03 14:58:10.836 CDT [73967] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2023-06-03 14:58:10.836 CDT [73967] WARNING:  could not create listen socket for "localhost"
+2023-06-03 14:58:10.836 CDT [73967] FATAL:  could not create any TCP/IP sockets
+2023-06-03 14:58:10.836 CDT [73967] LOG:  database system is shut down
+2023-06-03 14:59:09.800 CDT [74204] LOG:  starting PostgreSQL 14.8 (Homebrew) on x86_64-apple-darwin22.4.0, compiled by Apple clang version 14.0.3 (clang-1403.0.22.14.1), 64-bit
+2023-06-03 14:59:09.802 CDT [74204] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2023-06-03 14:59:09.802 CDT [74204] LOG:  listening on IPv6 address "::1", port 5432
+2023-06-03 14:59:09.804 CDT [74204] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2023-06-03 14:59:09.806 CDT [74205] LOG:  database system was shut down at 2023-06-03 14:23:19 CDT
+2023-06-03 14:59:09.809 CDT [74204] LOG:  database system is ready to accept connections
+2023-06-03 14:59:42.128 CDT [74289] FATAL:  lock file "postmaster.pid" already exists
+2023-06-03 14:59:42.128 CDT [74289] HINT:  Is another postmaster (PID 74204) running in data directory "/Users/preston/DEV/axum/movies_db"?

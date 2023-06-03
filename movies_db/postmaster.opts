@@ -1,0 +1,1 @@
+/usr/local/Cellar/postgresql@14/14.8/bin/postgres "-D" "movies_db"
